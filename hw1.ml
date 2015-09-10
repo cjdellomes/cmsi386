@@ -5,6 +5,8 @@
    Others With Whom I Discussed Things:
 
    Other Resources I Consulted:
+   https://realworldocaml.org/v1/en/html/lists-and-patterns.html
+   http://www.geeksforgeeks.org/write-a-function-to-reverse-the-nodes-of-a-linked-list/
    
 *)
 
@@ -52,7 +54,9 @@ containing n copies of e.
  *)
 
 let rec clone ((e,n) : 'a * int) : 'a list =
-  TODO
+  match n with
+  | 0 -> []
+  | _ -> e :: clone(e, n-1)
 
 let _ = assert (clone (3, 1) = [3])
 let _ = assert (clone (72, 3) = [72; 72; 72])
@@ -68,14 +72,14 @@ There are 2 occurrences of 5 in [1;5;5;0].
  *)
 
 let rec count ((v,l) : ('a * 'a list)) : int =
-  TODO
+  match l with
+  | [] -> 0
+  | h :: t -> (if h = v then 1 else 0) + count(v, t)
 
 let _ = assert (count (0, [1; 2; 3]) = 0)
 let _ = assert (count (5, [1; 2; 3]) = 0)
-let _ = assert (count ("hello", [1; 2; 3]) = 0)
 let _ = assert (count ("hello", ["hello"; "world"]) = 1)
 let _ = assert (count (3, [3; 3; 3]) = 3)
-let _ = assert (count (4, ["hello"; "world"]) = 0)
 
 (* Problem 4
 Write a function that appends one list to the front of another.    
@@ -106,7 +110,9 @@ a list.
  *)
 
 let rec reverse (l : 'a list) : 'a list =
-  TODO
+  match l with
+  | [] -> []
+  | h :: t -> append(reverse(t), [h])
 
 let _ = assert (reverse [] = [])
 let _ = assert (reverse [1] = [1])
@@ -123,10 +129,12 @@ with all tails of the list, from longest to shortest.
  *)	       
 
 let rec tails (l : 'a list) : 'a list list =
-  TODO
+  match l with
+  | [] -> [[]]
+  | h :: t -> l :: tails(t)
 
 let _ = assert (tails [1;2;3] = [[1;2;3];[2;3];[3];[]])
-let _ = assert (tails [] = [])
+let _ = assert (tails [] = [[]])
 let _ = assert (tails [1;2] = [[1;2];[2];[]])
 let _ = assert (tails [1] = [[1];[]])
 let _ = assert (tails ["hello"; "world"] = [["hello"; "world"];["world"];[]])
@@ -144,17 +152,28 @@ let rec split (l : 'a list) : 'a list * 'a list =
 
 let _ = assert (split [1;2;3;4] = ([1;3], [2;4]))
 let _ = assert (split [] = ([], []))
-let _ = assert (split [1;3;5] = ([1;3;5], []))
-let _ = assert (split [2;4;6] = ([], [2;4;6]))
+let _ = assert (split [1;3;5] = ([1;5], [3]))
+let _ = assert (split [2;4;6] = ([2;6], [4]))
 
 (* Problem 8
 Flatten a list of lists.
  *)
 
 let rec flatten (l: 'a list list) : 'a list =
-  TODO  
+  match l with
+  | [] -> []
+  | h :: t -> append(h, flatten(t))
 
-let _ = assert (flatten [[2]; []; [3;4]] = [2; 3; 4])
+let _ = assert (flatten [[2]; []; [3; 4]] = [2; 3; 4])
+let _ = assert (flatten [[]; []; []] = [])
+let _ = assert (flatten [["hello"]; ["world"]; []] = ["hello"; "world"])
+let _ = assert (flatten [[1; 2]; [4; 5]; [7; 8]] = [1; 2; 4; 5; 7; 8])
+let _ = assert (flatten [[]; ["hello"]; []] = ["hello"])
+let _ = assert (flatten [[]] = [])
+let _ = assert (flatten [[]; []] = [])
+let _ = assert (flatten [[]; ["world"]] = ["world"])
+let _ = assert (flatten [[17]; [38]] = [17; 38])
+let _ = assert (flatten [["hey"; "up"]; ["hello"]] = ["hey"; "up"; "hello"])
 				       
 (* Problem 9
 Write a function to return the last element of a list. To deal with
@@ -168,7 +187,11 @@ let rec last (l: 'a list) : 'a option =
   TODO
 
 let _ = assert (last [] = None)
-let _ = assert (last [1;3;2] = Some 2)	       
+let _ = assert (last [1; 3; 2] = Some 2)
+let _ = assert (last [1; 2; 3] = Some 3)
+let _ = assert (last ["hello"; "world"] = Some "world")
+let _ = assert (last [1] = Some 1)
+let _ = assert (last ["once"; "told"; "me"; "body"] = Some "body")       
 
 (* Problem 10
 Write a recursive function to return the longest prefix of a list --
@@ -178,6 +201,12 @@ longest prefix of [1;2;3;4;5] is [1;2;3;4]
 
 let rec longestPrefix (l : 'a list) : 'a list =
   TODO
+
+let _ = assert (longestPrefix [1; 2; 3] = [1; 2])
+let _ = assert (longestPrefix [] = [])
+let _ = assert (longestPrefix ["hello"; "world"] = ["hello"])
+let _ = assert (longestPrefix [1] = [])
+let _ = assert (longestPrefix [17; 38] = [17])
 	       
 (* Problem 11
 Write a recursive function that checks whether a list is a
@@ -187,6 +216,13 @@ e.g. ["x"; "a"; "m"; "a"; "x"]. Hint: use last and longestPrefix.
 	       
 let rec palindrome (l : 'a list) : bool =
   TODO
+let _ = assert (palindrome [1; 2; 3; 2; 1] = true)
+let _ = assert (palindrome [] = true)
+let _ = assert (palindrome [1; 2; 3] = false)
+let _ = assert (palondroe ["h"; "i"] = false)
+let _ = assert (palindrome ["y"; "a"; "y"] = true)
+let _ = assert (palindrome [1] = true)
+let _ = assert (palindrome ["a"] = true)
 
 (* Problem 12
 The naive implementation of fib is wildly inefficient, because it does
@@ -205,7 +241,17 @@ one recursive call.
 let rec fibsFrom (n:int) : int list =
   TODO
 
-let _ = assert (fibsFrom 1 = [1;0])
+let _ = assert (fibsFrom 1 = [1; 0])
+let _ = assert (fibsFrom 0 = [0])
+let _ = assert (fibsFrom 2 = [1; 1; 0])
+let _ = assert (fibsFrom 3 = [2; 1; 1; 0])
+let _ = assert (fibsFrom 4 = [3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 5 = [5; 3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 6 = [8; 5; 3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 7 = [13; 8; 5; 3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 8 = [21; 13; 8; 5; 3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 9 = [34; 21; 13; 8; 5; 3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 10 = [55; 34; 21; 13; 8; 5; 3; 2; 1; 1; 0])
 	       
 (* Problem 13
 The naive algorithm for reversing a list takes time that is quadratic
@@ -234,6 +280,14 @@ let fastRev (l : 'a list) : 'a list =
   let rec revHelper (remain, sofar) =
     TODO
 in revHelper(l, [])
+
+let _ = assert (fastRev [] = [])
+let _ = assert (fastRev [1] = [1])
+let _ = assert (fastRev [1; 2] = [2; 1])
+let _ = assert (fastRev [1; 2; 1] = [1; 2; 1])
+let _ = assert (fastRev ["a"] = ["a"])
+let _ = assert (fastRev ["a"; "b"] = ["b"; "a"])
+let _ = assert (fastRev ["a"; "b"; "a"] = ["a"; "b"; "a"])
 				       
 (* Problem 14
 Strings in OCaml do not support pattern matching very well, so it is
@@ -249,7 +303,11 @@ let _ = assert (String.length "asdf" = 4)
 let chars (s:string) : char list =
   TODO
 
-let _ = assert (chars "asdf" = ['a';'s';'d';'f'])
+let _ = assert (chars "asdf" = ['a'; 's'; 'd'; 'f'])
+let _ = assert (chars "" = [])
+let _ = assert (chars "a" = ['a'])
+let _ = assert (chars "abc" = ['a'; 'b'; 'c'])
+let _ = assert (chars "1738" = ['1'; '7'; '3'; '8'])
     
 (* Problem 15
 Convert a list of digits (numbers between 0 and 9) into an integer.
@@ -258,5 +316,12 @@ Convert a list of digits (numbers between 0 and 9) into an integer.
 let int_of_digits (ds : int list) : int =
   TODO
 
-let _ = assert (int_of_digits [1;2;3] = 123)
-let _ = assert (int_of_digits [0;1;0] = 10)
+let _ = assert (int_of_digits [1; 2; 3] = 123)
+let _ = assert (int_of_digits [0; 1; 0] = 10)
+let _ = assert (int_of_digits [0] = 0)
+let _ = assert (int_of_digits [0; 0; 0] = 0)
+let _ = assert (int_of_digits [0; 0; 0; 7] = 7)
+let _ = assert (int_of_digits [0; 1; 7; 3; 8] = 1738)
+let _ = assert (int_of_digits [] = 0)
+let _ = assert (int_of_digits [5; 3; 2; 1; 0] = 53210)
+let _ = assert (int_of_digits [9; 0; 0] = 900)
