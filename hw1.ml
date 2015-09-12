@@ -150,10 +150,12 @@ is, the second, fourth, etc.).
 let rec split (l : 'a list) : 'a list * 'a list =
   TODO
 
-let _ = assert (split [1;2;3;4] = ([1;3], [2;4]))
+let _ = assert (split [1; 2; 3; 4] = ([1; 3], [2; 4]))
 let _ = assert (split [] = ([], []))
-let _ = assert (split [1;3;5] = ([1;5], [3]))
-let _ = assert (split [2;4;6] = ([2;6], [4]))
+let _ = assert (split [1] = ([1], []))
+let _ = assert (split [1; 2] = ([1], [2]))
+let _ = assert (split [1; 3; 5] = ([1; 5], [3]))
+let _ = assert (split [2; 4; 6] = ([2; 6], [4]))
 
 (* Problem 8
 Flatten a list of lists.
@@ -184,7 +186,10 @@ type 'a option = None | Some of 'a
  *)
 
 let rec last (l: 'a list) : 'a option =
-  TODO
+  match l with
+  | [] -> None
+  | [x] -> Some x
+  | h :: t -> last t
 
 let _ = assert (last [] = None)
 let _ = assert (last [1; 3; 2] = Some 2)
@@ -200,7 +205,10 @@ longest prefix of [1;2;3;4;5] is [1;2;3;4]
  *)
 
 let rec longestPrefix (l : 'a list) : 'a list =
-  TODO
+  match l with
+  | [] -> []
+  | [x] -> []
+  | h :: t -> h :: longestPrefix(t)
 
 let _ = assert (longestPrefix [1; 2; 3] = [1; 2])
 let _ = assert (longestPrefix [] = [])
@@ -215,7 +223,7 @@ e.g. ["x"; "a"; "m"; "a"; "x"]. Hint: use last and longestPrefix.
  *)
 	       
 let rec palindrome (l : 'a list) : bool =
-  TODO
+
 let _ = assert (palindrome [1; 2; 3; 2; 1] = true)
 let _ = assert (palindrome [] = true)
 let _ = assert (palindrome [1; 2; 3] = false)
