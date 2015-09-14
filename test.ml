@@ -149,11 +149,17 @@ let _ = assert (ints 2 = [2;1])
 let _ = assert (ints 5 = [5;4;3;2;1])
 
 let rec split (l : 'a list) : 'a list * 'a list =
+	let getLeft (a, _ : 'a list * 'a list) = a in
+	let getTail (l: 'a list) = 
+	match l with
+	| []-> []
+	| h :: t -> t
+	in
 	match l with
 	| [] -> ([], [])
-	| [x] -> ([x], [])
-	| [x; y] -> ([x], [y])
-	| h :: x :: y :: t -> (h, x) :: split(y), split(t)
+	| [a] -> ([a], [])
+	| [a; b] -> ([a], [b])
+	| h :: m :: t -> (h :: getLeft(split(t)), m :: getLeft(split(getTail(t))))
 
 let _ = assert (split [1; 2; 3; 4] = ([1; 3], [2; 4]))
 let _ = assert (split [] = ([], []))
@@ -161,3 +167,81 @@ let _ = assert (split [1] = ([1], []))
 let _ = assert (split [1; 2] = ([1], [2]))
 let _ = assert (split [1; 3; 5] = ([1; 5], [3]))
 let _ = assert (split [2; 4; 6] = ([2; 6], [4]))
+
+let rec int_of_digits (ds : int list) : int =
+	let x = 10.0 ** (float_of_int(List.length(ds) - 1)) in
+	match ds with
+	| [] -> 0
+	| h :: t -> (h * int_of_float(x)) + int_of_digits(t)
+
+let _ = assert (int_of_digits [1; 2; 3] = 123)
+let _ = assert (int_of_digits [0; 1; 0] = 10)
+let _ = assert (int_of_digits [0] = 0)
+let _ = assert (int_of_digits [0; 0; 0] = 0)
+let _ = assert (int_of_digits [0; 0; 0; 7] = 7)
+let _ = assert (int_of_digits [0; 1; 7; 3; 8] = 1738)
+let _ = assert (int_of_digits [] = 0)
+let _ = assert (int_of_digits [5; 3; 2; 1; 0] = 53210)
+let _ = assert (int_of_digits [9; 0; 0] = 900)
+
+let rec chars (s:string) : char list =
+	let x = String.length(s) - 1 in
+	match String.length(s) with
+	| 0 -> []
+	| 1 -> [String.get s 0]
+	| _ -> append(chars(String.sub s 0 x),[String.get s x])
+
+let _ = assert (chars "asdf" = ['a'; 's'; 'd'; 'f'])
+let _ = assert (chars "a" = ['a'])
+let _ = assert (chars "abc" = ['a'; 'b'; 'c'])
+let _ = assert (chars "1738" = ['1'; '7'; '3'; '8'])
+let _ = assert (chars "" = [])
+let _ = assert (chars "1a" = ['1';'a'])
+let _ = assert (chars "a b" = ['a'; ' '; 'b'])
+
+let rec fibsFrom (n:int) : int list =
+	match n with
+	| 0 -> [0]
+	| 1 -> [1;0]
+	| _ -> let x = fibsFrom(n-1) in append([List.nth x 0 + List.nth x 1], x)
+
+let _ = assert (fibsFrom 1 = [1; 0])
+let _ = assert (fibsFrom 0 = [0])
+let _ = assert (fibsFrom 2 = [1; 1; 0])
+let _ = assert (fibsFrom 3 = [2; 1; 1; 0])
+let _ = assert (fibsFrom 4 = [3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 5 = [5; 3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 6 = [8; 5; 3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 7 = [13; 8; 5; 3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 8 = [21; 13; 8; 5; 3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 9 = [34; 21; 13; 8; 5; 3; 2; 1; 1; 0])
+let _ = assert (fibsFrom 10 = [55; 34; 21; 13; 8; 5; 3; 2; 1; 1; 0])
+
+let rec palindrome (l : 'a list) : bool =
+	match l with
+	| [] -> true
+	| [x] -> true
+	| h :: t -> if Some h = last(l) then palindrome(longestPrefix(t)) else false
+
+let _ = assert (palindrome [1; 2; 3; 2; 1] = true)
+let _ = assert (palindrome [] = true)
+let _ = assert (palindrome [1; 2; 3] = false)
+let _ = assert (palindrome ["h"; "i"] = false)
+let _ = assert (palindrome ["y"; "a"; "y"] = true)
+let _ = assert (palindrome [1] = true)
+let _ = assert (palindrome ["a"] = true)
+
+let fastRev (l : 'a list) : 'a list =
+  let rec revHelper (remain, sofar) =
+    match remain with
+    | [] -> sofar
+    | h :: t -> revHelper(t, h :: sofar)
+in revHelper(l, [])
+
+let _ = assert (fastRev [] = [])
+let _ = assert (fastRev [1] = [1])
+let _ = assert (fastRev [1; 2] = [2; 1])
+let _ = assert (fastRev [1; 2; 1] = [1; 2; 1])
+let _ = assert (fastRev ["a"] = ["a"])
+let _ = assert (fastRev ["a"; "b"] = ["b"; "a"])
+let _ = assert (fastRev ["a"; "b"; "a"] = ["a"; "b"; "a"])

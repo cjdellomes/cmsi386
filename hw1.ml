@@ -3,10 +3,19 @@
    Student ID: 976113672
 
    Others With Whom I Discussed Things:
+   Peyton Cross
+   Trixie Roque
+   Victor Frolov
+   Justin Sanny
 
    Other Resources I Consulted:
    https://realworldocaml.org/v1/en/html/lists-and-patterns.html
    http://www.geeksforgeeks.org/write-a-function-to-reverse-the-nodes-of-a-linked-list/
+   http://static1.squarespace.com/static/51224b9fe4b0dce195c74e5d/t/51b08a10e4b0f797b965d72d/1370524176424/CopingWithErrors.pdf
+   https://ocaml.org/learn/tutorials/basics.html
+   http://caml.inria.fr/pub/docs/manual-ocaml/libref/String.html
+   http://caml.inria.fr/pub/docs/manual-ocaml/libref/List.html
+   http://stackoverflow.com/questions/26005545/ocaml-extract-nth-element-of-a-tuple
    
 *)
 
@@ -148,7 +157,21 @@ is, the second, fourth, etc.).
  *)
 
 let rec split (l : 'a list) : 'a list * 'a list =
-  TODO
+  let getLeft (a, _ : 'a list * 'a list) = a in
+  let _ = assert (getLeft([1],[2]) = [1]) in
+
+  let getTail (l: 'a list) = 
+  match l with
+  | []-> []
+  | h :: t -> t
+  in
+  let _ = assert (getTail([1]) = []) in
+  
+  match l with
+  | [] -> ([], [])
+  | [a] -> ([a], [])
+  | [a; b] -> ([a], [b])
+  | h :: m :: t -> (h :: getLeft(split(t)), m :: getLeft(split(getTail(t))))
 
 let _ = assert (split [1; 2; 3; 4] = ([1; 3], [2; 4]))
 let _ = assert (split [] = ([], []))
@@ -223,11 +246,15 @@ e.g. ["x"; "a"; "m"; "a"; "x"]. Hint: use last and longestPrefix.
  *)
 	       
 let rec palindrome (l : 'a list) : bool =
+  match l with
+  | [] -> true
+  | [x] -> true
+  | h :: t -> if Some h = last(l) then palindrome(longestPrefix(t)) else false
 
 let _ = assert (palindrome [1; 2; 3; 2; 1] = true)
 let _ = assert (palindrome [] = true)
 let _ = assert (palindrome [1; 2; 3] = false)
-let _ = assert (palondroe ["h"; "i"] = false)
+let _ = assert (palindrome ["h"; "i"] = false)
 let _ = assert (palindrome ["y"; "a"; "y"] = true)
 let _ = assert (palindrome [1] = true)
 let _ = assert (palindrome ["a"] = true)
@@ -246,8 +273,11 @@ noticeably faster than (fib 50).  Hint: Your function should make only
 one recursive call.
  *)
 
-let rec fibsFrom (n:int) : int list =
-  TODO
+let rec fibsFrom (n : int) : int list =
+  match n with
+  | 0 -> [0]
+  | 1 -> [1; 0]
+  | _ -> let x = fibsFrom(n - 1) in append([List.nth x 0 + List.nth x 1], x)
 
 let _ = assert (fibsFrom 1 = [1; 0])
 let _ = assert (fibsFrom 0 = [0])
@@ -286,7 +316,11 @@ noticeably faster than (reverse (clone(0, 10000))).
 				       
 let fastRev (l : 'a list) : 'a list =
   let rec revHelper (remain, sofar) =
-    TODO
+    match remain with
+    | [] -> sofar
+    | h :: t -> revHelper(t, h :: sofar)
+  in
+  let _ = assert(revHelper([1;2;3], []) = [3;2;1])
 in revHelper(l, [])
 
 let _ = assert (fastRev [] = [])
@@ -308,8 +342,12 @@ string to a char list.
 let _ = assert (String.get "asdf" 0 = 'a')
 let _ = assert (String.length "asdf" = 4)	       
 
-let chars (s:string) : char list =
-  TODO
+let rec chars (s : string) : char list =
+  let x = String.length(s) - 1 in
+  match String.length(s) with
+  | 0 -> []
+  | 1 -> [String.get s 0]
+  | _ -> append(chars(String.sub s 0 x),[String.get s x])
 
 let _ = assert (chars "asdf" = ['a'; 's'; 'd'; 'f'])
 let _ = assert (chars "" = [])
@@ -321,8 +359,11 @@ let _ = assert (chars "1738" = ['1'; '7'; '3'; '8'])
 Convert a list of digits (numbers between 0 and 9) into an integer.
  *)
 
-let int_of_digits (ds : int list) : int =
-  TODO
+let rec int_of_digits (ds : int list) : int =
+  let x = 10.0 ** (float_of_int(List.length(ds) - 1)) in
+  match ds with
+  | [] -> 0
+  | h :: t -> (h * int_of_float(x)) + int_of_digits(t)
 
 let _ = assert (int_of_digits [1; 2; 3] = 123)
 let _ = assert (int_of_digits [0; 1; 0] = 10)
