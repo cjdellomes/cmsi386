@@ -1,4 +1,4 @@
-(* Name: CHristopher Dellomes
+(* Name: Christopher Dellomes
    Email: cdellome@lion.lmu.edu
    Student ID: 976113672
 
@@ -166,7 +166,7 @@ let rec split (l : 'a list) : 'a list * 'a list =
   | h :: t -> t
   in
   let _ = assert (getTail([1]) = []) in
-  
+
   match l with
   | [] -> ([], [])
   | [a] -> ([a], [])
