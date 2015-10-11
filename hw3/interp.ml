@@ -60,37 +60,17 @@ let rec patMatch (pat : mopat) (value : movalue) : moenv =
 	 no variables are declared in the pattern so the returned environment is empty;
    if pattern does not match value, throw MatchFailure *)
     |  (IntPat(i), IntVal(j)) when i = j -> Env.empty_env()
-    |  (IntPat(i), IntVal(j)) when i != j -> raise (MatchFailure)
-    |  (IntPat(i), BoolVal(j)) -> raise (MatchFailure)
-    |  (IntPat(i), NilVal) -> raise (MatchFailure)
-    |  (IntPat(i), ConsVal(IntVal(j), NilVal)) -> raise (MatchFailure)
-    |  (IntPat(i), ConsVal(BoolVal(j), NilVal)) -> raise (MatchFailure)
       (* integer pattern rules apply for booleans *)
     |  (BoolPat(i), BoolVal(j)) when i = j -> Env.empty_env()
-    |  (BoolPat(i), BoolVal(j)) when i != j -> raise (MatchFailure)
-    |  (BoolPat(i), IntVal(j)) -> raise (MatchFailure)
-    |  (BoolPat(i), NilVal) -> raise (MatchFailure)
-    |  (BoolPat(i), ConsVal(IntVal(j), NilVal)) -> raise (MatchFailure)
-    |  (BoolPat(i), ConsVal(BoolVal(j), NilVal)) -> raise (MatchFailure)
       (* wildcards work with integers and booleans *)
-    |  (WildcardPat, IntVal(i)) -> Env.empty_env()
-    |  (WildcardPat, BoolVal(i)) -> Env.empty_env()
-    |  (WildcardPat, NilVal) -> raise (MatchFailure)
-      (* variable patterns match with any integer and boolean types*)
-    |  (VarPat(i), IntVal(j)) -> (i, IntVal(j)) :: []
-    |  (VarPat(i), BoolVal(j)) -> (i, BoolVal(j)) :: []
+    |  (WildcardPat, _) -> Env.empty_env()
+      (* variable patterns match with any integer, boolean, and cons types*)
+    |  (VarPat(i), j) -> Env.add_binding i j (Env.empty_env())
       (* integer pattern rules apply for nil *)
     |  (NilPat, NilVal) -> Env.empty_env()
-    |  (NilPat, IntVal(i)) -> raise (MatchFailure)
-    |  (NilPat, BoolVal(i)) -> raise (MatchFailure)
-    |  (NilPat, ConsVal(IntVal(i), NilVal)) -> raise (MatchFailure)
-    |  (NilPat, ConsVal(BoolVal(i), NilVal)) -> raise (MatchFailure)
       (* cons pattern *)
-    |  (ConsPat(IntPat(i), NilPat), ConsVal(IntVal(j), NilVal)) -> Env.empty_env()
-    |  (ConsPat(IntPat(i), NilPat), ConsVal(BoolVal(j), NilVal)) -> raise (MatchFailure)
-    |  (ConsPat(BoolPat(i), NilPat), ConsVal(IntVal(j), NilVal)) -> raise (MatchFailure)
-    |  (ConsPat(VarPat(i), (VarPat(j))), ConsVal(IntVal(k), NilVal)) -> (j, NilVal) :: (i, IntVal(k)) :: []
-    | _ -> raise (ImplementMe "patMatch")
+    |  (ConsPat(a, b), ConsVal(x, y)) -> Env.combine_envs (patMatch a x) (patMatch b y)
+    | _ -> raise (MatchFailure)
 
 
 (* patMatchTest defines a test case for the patMatch function.
@@ -127,7 +107,6 @@ let patMatchTests = [
     (* wildcard pattern *)
   ; ("WildcardPat/1", WildcardPat, IntVal 5,     Value [])
   ; ("WildcardPat/2", WildcardPat, BoolVal true, Value [])
-  ; ("WildcardPat/3", WildcardPat, NilVal,       Exception MatchFailure)
 
     (* variable pattern *)
   ; ("VarPat/1", VarPat "x", IntVal 5,     Value [("x", IntVal 5)])
@@ -162,7 +141,9 @@ List.map patMatchTest patMatchTests;;
    raise the MatchFailure exception.
  *)
 let rec matchCases (value : movalue) (cases : (mopat * moexpr) list) : moenv * moexpr =
-  raise (ImplementMe "matchCases")
+  match cases with
+  | (i, j) :: t -> (try (patMatch i value, j) with MatchFailure -> matchCases value t)
+  | [] -> raise (MatchFailure)
 
 (* We'll use these cases for our tests.
    To make it easy to identify which case is selected, we make
@@ -219,26 +200,22 @@ let rec evalExpr (e : moexpr) (env : moenv) : movalue =
     (* an integer constant evaluates to itself *)
   |  IntConst(i) -> IntVal(i)
   |  BoolConst(i) -> BoolVal(i)
-  |  Var(i) -> raise (DynamicTypeError "dynamic type error")
+  |  Nil -> NilVal
     (*Plus*)
   |  BinOp(IntConst(i), Plus, IntConst(j)) -> IntVal(i + j)
-  |  BinOp(BoolConst(i), Plus, IntConst(j)) -> raise (DynamicTypeError "dynamic type error")
-  |  BinOp(IntConst(i), Plus, BoolConst(j)) -> raise (DynamicTypeError "dynamic type error")
-  |  BinOp(BoolConst(i), Plus, BoolConst(j)) -> raise (DynamicTypeError "dynamic type error")
     (*Minus*)
   |  BinOp(IntConst(i), Minus, IntConst(j)) -> IntVal(i - j)
-  |  BinOp(BoolConst(i), Minus, IntConst(j)) -> raise (DynamicTypeError "dynamic type error")
-  |  BinOp(IntConst(i), Minus, BoolConst(j)) -> raise (DynamicTypeError "dynamic type error")
-  |  BinOp(BoolConst(i), Minus, BoolConst(j)) -> raise (DynamicTypeError "dynamic type error")
     (*Times*)
   |  BinOp(IntConst(i), Times, IntConst(j)) -> IntVal(i * j)
-  |  BinOp(BoolConst(i), Times, IntConst(j)) -> raise (DynamicTypeError "dynamic type error")
-  |  BinOp(IntConst(i), Times, BoolConst(j)) -> raise (DynamicTypeError "dynamic type error")
-  |  BinOp(BoolConst(i), Times, BoolConst(j)) -> raise (DynamicTypeError "dynamic type error")
+    (*Equal*)
+  |  BinOp(IntConst(i), Eq, IntConst(j)) -> BoolVal(i = j)
+    (*Greater Than*)
+  |  BinOp(IntConst(i), Gt, IntConst(j)) -> BoolVal(i > j)
     (*Let*)
   |  Let(VarPat(i), IntConst(j), Var(k)) -> IntVal(j)
   |  Let(VarPat(i), BoolConst(j), Var(k)) -> BoolVal(j)
-  | _ -> raise (ImplementMe "evalExpr")
+  |  Let(VarPat(i), Nil, Var(k)) -> NilVal
+  | _ -> raise (DynamicTypeError "dynamic type error")
 
 (* evalExprTest defines a test case for the evalExpr function.
    inputs: 
@@ -268,8 +245,19 @@ let evalExprTests = [
   ; ("BadTimes/1",     BinOp(BoolConst true, Times, IntConst 1), Exception (DynamicTypeError "dynamic type error"))
   ; ("BadTimes/2",     BinOp(IntConst 1, Times, BoolConst true), Exception (DynamicTypeError "dynamic type error"))
   ; ("BadTimes/3",  BinOp(BoolConst true, Times, BoolConst true), Exception (DynamicTypeError "dynamic type error"))
+  ; ("Eq/1",       BinOp(IntConst 5, Eq, IntConst 5),    Value (BoolVal true))
+  ; ("Eq/2",       BinOp(IntConst 5, Eq, IntConst 1),    Value (BoolVal false))
+  ; ("BadEq/1",     BinOp(BoolConst true, Eq, IntConst 1), Exception (DynamicTypeError "dynamic type error"))
+  ; ("BadEq/2",     BinOp(IntConst 1, Eq, BoolConst true), Exception (DynamicTypeError "dynamic type error"))
+  ; ("BadEq/3",  BinOp(BoolConst true, Eq, BoolConst true), Exception (DynamicTypeError "dynamic type error"))
+  ; ("Gt/1",       BinOp(IntConst 5, Gt, IntConst 5),    Value (BoolVal false))
+  ; ("Gt/2",       BinOp(IntConst 5, Gt, IntConst 1),    Value (BoolVal true))
+  ; ("BadGt/1",     BinOp(BoolConst true, Gt, IntConst 1), Exception (DynamicTypeError "dynamic type error"))
+  ; ("BadGt/2",     BinOp(IntConst 1, Gt, BoolConst true), Exception (DynamicTypeError "dynamic type error"))
+  ; ("BadGt/3",  BinOp(BoolConst true, Eq, BoolConst true), Exception (DynamicTypeError "dynamic type error"))
   ; ("Let/1",         Let(VarPat "x", IntConst 1, Var "x"),    Value (IntVal 1))
   ; ("Let/2",         Let(VarPat "x", BoolConst true, Var "x"), Value (BoolVal true))
+  ; ("BadLet",        Let(VarPat "x", Nil, Var "x"),       Value (NilVal))
   ; ("Fun",         FunCall(
 			Fun(VarPat "x", Var "x"),
 			IntConst 5),                         Value (IntVal 5))

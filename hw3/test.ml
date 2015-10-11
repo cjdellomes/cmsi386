@@ -25,6 +25,7 @@ let replTests = [
   ; ("3 + 1",                   "val - = 4")
   ; ("let z = true",            "val z = true")
   ; ("let a = fact 5",          "val a = 120")
+  ; ("let b = []",              "val b = []")
   ]
 
 (* The Test Harness
