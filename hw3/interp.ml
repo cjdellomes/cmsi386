@@ -142,8 +142,8 @@ List.map patMatchTest patMatchTests;;
  *)
 let rec matchCases (value : movalue) (cases : (mopat * moexpr) list) : moenv * moexpr =
   match cases with
-  | (i, j) :: t -> (try (patMatch i value, j) with MatchFailure -> matchCases value t)
   | [] -> raise (MatchFailure)
+  | (i, j) :: t -> (try (patMatch i value, j) with MatchFailure -> matchCases value t)
 
 (* We'll use these cases for our tests.
    To make it easy to identify which case is selected, we make
@@ -201,20 +201,40 @@ let rec evalExpr (e : moexpr) (env : moenv) : movalue =
   |  IntConst(i) -> IntVal(i)
   |  BoolConst(i) -> BoolVal(i)
   |  Nil -> NilVal
-    (*Plus*)
-  |  BinOp(IntConst(i), Plus, IntConst(j)) -> IntVal(i + j)
-    (*Minus*)
-  |  BinOp(IntConst(i), Minus, IntConst(j)) -> IntVal(i - j)
-    (*Times*)
-  |  BinOp(IntConst(i), Times, IntConst(j)) -> IntVal(i * j)
-    (*Equal*)
-  |  BinOp(IntConst(i), Eq, IntConst(j)) -> BoolVal(i = j)
-    (*Greater Than*)
-  |  BinOp(IntConst(i), Gt, IntConst(j)) -> BoolVal(i > j)
+  |  Var(i) -> (try (Env.lookup i env) with Env.NotBound -> raise (DynamicTypeError "dynamic type error"))
+    (*BinOp*)
+  |  BinOp(e1, op, e2) -> (match ((evalExpr e1 env), op, (evalExpr e2 env)) with
+      | (IntVal(x), Plus, IntVal(y)) -> IntVal (x + y)
+      | (IntVal(x), Minus, IntVal(y)) -> IntVal (x - y)
+      | (IntVal(x), Times, IntVal(y)) -> IntVal (x * y)
+      | (IntVal(x), Eq, IntVal(y)) -> BoolVal(x = y)
+      | (IntVal(x), Gt, IntVal(y)) -> BoolVal(x > y)
+      | (x, Cons, y) -> ConsVal(x, y)
+      | _ -> raise (DynamicTypeError "dynamic type error"))
+    (*Negate*)
+  |  Negate(IntConst(i)) -> IntVal(-i)
+  |  Negate(BoolConst(i)) -> BoolVal(not i)
+    (*If*)
+  |  If(expr1, expr2, expr3) -> (if evalExpr expr1 env = BoolVal(true) then evalExpr expr2 env else evalExpr expr3 env)
+    (*Fun*)
+  |  Fun(i, j) -> FunVal(None, i, j, env)
+    (*FunCall*)
+  |  FunCall(i, j) -> (match (evalExpr i env) with
+      | FunVal(Some s, pat, expr, e) -> (evalExpr expr (Env.add_binding s (evalExpr i env) (Env.combine_envs e (patMatch pat (evalExpr j env)))))
+      | FunVal(None, pat, expr, e) -> (evalExpr expr (Env.combine_envs e (patMatch pat (evalExpr j env))))
+      | _ -> raise (DynamicTypeError "dynamic type error"))
     (*Let*)
   |  Let(VarPat(i), IntConst(j), Var(k)) -> IntVal(j)
   |  Let(VarPat(i), BoolConst(j), Var(k)) -> BoolVal(j)
   |  Let(VarPat(i), Nil, Var(k)) -> NilVal
+    (*LetRec*)
+  |  LetRec(s, i, j) -> (match (evalExpr i env) with
+      | FunVal(None, pat, expr, e) -> tieTheKnot s (evalExpr i env)
+      | _ -> raise (DynamicTypeError "dynamic type error"))
+    (*Match*)
+  |  Match(expr, lst) -> (match lst with
+      | [] -> raise (MatchFailure)
+      | (i, j) :: t -> (try (evalExpr j (Env.combine_envs env (patMatch i (evalExpr expr env)))) with MatchFailure -> evalExpr (Match(expr, t)) env))
   | _ -> raise (DynamicTypeError "dynamic type error")
 
 (* evalExprTest defines a test case for the evalExpr function.
@@ -255,12 +275,16 @@ let evalExprTests = [
   ; ("BadGt/1",     BinOp(BoolConst true, Gt, IntConst 1), Exception (DynamicTypeError "dynamic type error"))
   ; ("BadGt/2",     BinOp(IntConst 1, Gt, BoolConst true), Exception (DynamicTypeError "dynamic type error"))
   ; ("BadGt/3",  BinOp(BoolConst true, Eq, BoolConst true), Exception (DynamicTypeError "dynamic type error"))
+  ; ("Negate/1",   Negate(IntConst 5), Value (IntVal(-5)))
+  ; ("Negate/2",   Negate(BoolConst true), Value (BoolVal(false)))
+  ; ("BadNegate",  Negate(Nil), Exception (DynamicTypeError "dynamic type error"))
+  ; ("If/1",       If(BoolConst(true), IntConst(5), IntConst(3)), Value(IntVal(5)))
+  ; ("If/1",       If(BoolConst(false), IntConst(5), IntConst(3)), Value(IntVal(3)))
   ; ("Let/1",         Let(VarPat "x", IntConst 1, Var "x"),    Value (IntVal 1))
   ; ("Let/2",         Let(VarPat "x", BoolConst true, Var "x"), Value (BoolVal true))
   ; ("BadLet",        Let(VarPat "x", Nil, Var "x"),       Value (NilVal))
-  ; ("Fun",         FunCall(
-			Fun(VarPat "x", Var "x"),
-			IntConst 5),                         Value (IntVal 5))
+  ; ("Fun/1",         FunCall(Fun(VarPat "x", Var "x"), IntConst 5), Value (IntVal 5))
+  ; ("Fun/2",         FunCall(Fun(VarPat "y", Var "y"), BoolConst true), Value (BoolVal true))
   ]
 ;;
 
