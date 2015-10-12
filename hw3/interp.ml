@@ -3,8 +3,12 @@
    UID: 976113672
 
    Others With Whom I Discussed Things:
+   Justin Sanny
+   J.B. Morris
+   Nick Soffa
 
    Other Resources I Consulted:
+   https://realworldocaml.org/v1/en/html/error-handling.html
    
 *)
 
