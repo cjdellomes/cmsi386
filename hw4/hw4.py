@@ -492,10 +492,22 @@ class Select:
 
     def __init__(self, in_headers, args):
         self.input_headers = in_headers
+        consumed = []
+        for i in range(0, len(args)):
+            if list(str(args[0]))[0] != '-':
+                consumed.append(args.pop(0))
+
+        self.output_headers = consumed
+
         self.aggregate_headers = []
 
+        self.selected = consumed
+
     def process_row(self, row):
-        raise Exception("Implement Select.process_row")
+        row_copy = {}
+        for i in self.selected:
+            row_copy[i] = row[i]
+        return row_copy
 
     def get_aggregate(self):
         return {}

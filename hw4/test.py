@@ -187,7 +187,7 @@ def runQuery(f, query):
         converted = rowStringToDict(query.input_headers, ln)
         current = query.process_row(converted)
         if current != None:
-            print(rowDictToString(query.input_headers, converted))
+            print(rowDictToString(query.output_headers, current))
 
 
     # did the query do any aggregation?
@@ -277,7 +277,7 @@ class Rename:
         consumed.append(args.pop(0))
         in_headers_copy = in_headers
         in_headers_copy[in_headers_copy.index(consumed[0])] = consumed[1]
-        self.output_headers = temp
+        self.output_headers = in_headers_copy
         self.aggregate_headers = []
 
     def process_row(self,row):
@@ -404,17 +404,21 @@ class Select:
     def __init__(self, in_headers, args):
         self.input_headers = in_headers
         consumed = []
-        for i in args:
-            if len(args) == 0 or list(str(args[0]))[0] == '-':
-                break
-            else:
+        for i in range(0, len(args)):
+            if list(str(args[0]))[0] != '-':
                 consumed.append(args.pop(0))
-        consumed.reverse()
+
+        self.output_headers = consumed
 
         self.aggregate_headers = []
 
+        self.selected = consumed
+
     def process_row(self, row):
-        raise Exception("Implement Select.process_row")
+        row_result = {}
+        for i in self.selected:
+            row_result[i] = row[i]
+        return row_result
 
     def get_aggregate(self):
         return {}
@@ -453,3 +457,72 @@ def runSelect2():
 
     # run it.
     runQuery(f, query)
+
+class Filter:
+    """
+    Return only the rows that pass a check. Consumes a single argument from args, which
+    is a python expression. For each row, check whether that row should be in the output
+    by evaluating the expression. If the expression evaluates to True, then return the 
+    row unchanged. If the expression evaluates to False, return None.
+
+    Does no aggregation.
+
+    Tip: use python's eval function to evaluate a string of python source code.
+         See help(eval)
+
+    Examples of eval:
+        eval('1 + 2')   # evaluates to 3
+        
+    eval can take in an environment as its second argument, which binds values to variables
+    in the expression. Use this feature to allow the expression to refer to the columns by name.
+
+        eval('x + y', {'x' : 1, 'y' : 2})   # evaluates to 3
+
+    Example: Players that played at least 500 games
+
+    $ python3 hw4.py player_career_short.csv -Filter 'int(gp) > 500'
+    id,firstname,lastname,leag,gp,minutes,pts,oreb,dreb,reb,asts,stl,blk,turnover,pf,fga,fgm,fta,ftm,tpa,tpm
+    ABDULKA01 ,Kareem,Abdul-jabbar,N,1560,57446,38387,2975,9394,17440,5660,1160,3189,2527,4657,28307,15837,9304,6712,18,1
+    ABDULMA01 ,Mahmo,Abdul-rauf,N,586,15633,8553,219,868,1087,2079,487,46,963,1107,7943,3514,1161,1051,1339,474
+    ABDURSH01 ,Shareef,Abdur-rahim,N,830,28883,15028,1869,4370,6239,2109,820,638,2136,2324,11515,5434,4943,4006,519,154
+    """
+
+    def __init__(self, in_headers, args):
+        self.input_headers = in_headers
+        consumed = []
+        for i in range(0, len(args)):
+            if list(str(args[0]))[0] != '-':
+                consumed.append(args.pop(0))
+
+        self.output_headers = in_headers
+
+        self.aggregate_headers = []
+
+        self.checks = consumed
+
+    def process_row(self,row):
+        for i in self.checks:
+            if eval(i) == False:
+                return None
+        return row
+
+    def get_aggregate(self):
+        return {}
+
+def runFilter():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['int(gp) > 500']
+    query = Filter(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)
+
+runFilter()
