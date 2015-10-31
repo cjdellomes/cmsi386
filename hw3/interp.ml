@@ -6,6 +6,7 @@
    Justin Sanny
    J.B. Morris
    Nick Soffa
+   Victor Frolov
 
    Other Resources I Consulted:
    https://realworldocaml.org/v1/en/html/error-handling.html
