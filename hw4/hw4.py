@@ -975,13 +975,28 @@ class ComposeQueries:
 
     """
     def __init__(self, q1, q2):
-        raise Exception("Implement ComposeQueries constructor")
+        self.input_headers = q1.input_headers
+        self.output_headers = q2.output_headers
+        self.aggregate_headers = q1.aggregate_headers + q2.aggregate_headers
+        print(q1.aggregate_headers)
+
+        self.queries = [q1, q2]
 
     def process_row(self,row):
-        raise Exception("Implement ComposeQueries.process_row")
+        if self.queries[1].process_row != None:
+            return self.queries[1].process_row(self.queries[0].process_row(row))
+        else:
+            return None
 
     def get_aggregate(self):
-        raise Exception("Implement ComposeQueries.get_aggregate")
+        if len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) > 0:
+            return self.queries[0].get_aggregate().update(self.queries[1].get_aggregate())
+        elif len(self.queries[0].get_aggregate()) <= 0 and len(self.queries[1].get_aggregate()) > 0:
+            return self.queries[1].get_aggregate()
+        elif len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) <= 0:
+            return self.queries[0].get_aggregate()
+        else:
+            return {}
 
 #################### Test it! ####################
 
