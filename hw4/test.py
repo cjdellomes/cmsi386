@@ -502,7 +502,7 @@ class Filter:
 
     def process_row(self,row):
         for i in self.checks:
-            if eval(i) == False:
+            if eval(i, row) == False:
                 return None
         return row
 
@@ -525,4 +525,127 @@ def runFilter():
     # run it.
     runQuery(f, query)
 
-runFilter()
+class Update:
+    """ 
+    Updates the values of a column. Consume two arguments from args: a column name
+    and a python expression. Evaluate the expression using eval (as for Filter), 
+    and assign the result to the designated column. Raise an exception if the
+    column is not in in_headers. 
+
+    Does no aggregation. 
+
+    Tip: use "x in l" to check if x is an element of l. See help('in').
+
+    Example: Convert firstname to lower case.
+
+    $ python3 hw4.py player_career_short.csv -Update firstname 'firstname.lower()'
+    id,firstname,lastname,leag,gp,minutes,pts,oreb,dreb,reb,asts,stl,blk,turnover,pf,fga,fgm,fta,ftm,tpa,tpm
+    ABDELAL01 ,alaa,Abdelnaby,N,256,3200,1465,283,563,846,85,71,69,247,484,1236,620,321,225,3,0
+    ABDULKA01 ,kareem,Abdul-jabbar,N,1560,57446,38387,2975,9394,17440,5660,1160,3189,2527,4657,28307,15837,9304,6712,18,1
+    ABDULMA01 ,mahmo,Abdul-rauf,N,586,15633,8553,219,868,1087,2079,487,46,963,1107,7943,3514,1161,1051,1339,474
+    ABDULTA01 ,tariq,Abdul-wahad,N,236,4808,1830,286,490,776,266,184,82,309,485,1726,720,529,372,76,18
+    ABDURSH01 ,shareef,Abdur-rahim,N,830,28883,15028,1869,4370,6239,2109,820,638,2136,2324,11515,5434,4943,4006,519,154
+    ABERNTO01 ,tom,Abernethy,N,319,5434,1779,374,637,1011,384,185,60,129,525,1472,724,443,331,2,0
+    ABLEFO01  ,forest,Able,N,1,1,0,0,0,1,1,0,0,0,1,2,0,0,0,0,0
+    ABRAMJO01 ,john,Abramovic,N,56,0,533,0,0,0,37,0,0,0,171,855,203,185,127,0,0
+    ACKERAL01 ,alex,Acker,N,30,234,81,9,20,29,16,6,4,11,13,92,34,10,5,25,8
+    """
+    
+    def __init__(self, in_headers, args):
+        self.input_headers = in_headers
+        consumed = [args.pop(0)]
+        consumed.append(args.pop(0))
+        self.output_headers = in_headers
+        self.aggregate_headers = []
+
+        if not(consumed[0] in self.input_headers):
+            raise Exception('column given not in input headers')
+
+        self.updated = consumed
+
+    def process_row(self,row):
+        temp = eval(self.updated[1], row)
+        row[self.updated[0]] = temp
+        return row
+
+    def get_aggregate(self):
+        return {}
+
+def runUpdate():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['firstname', 'firstname.lower()']
+    query = Update(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)
+
+class Add:
+    """ 
+    Add a new column to the database. Like Update, Add consumes two arguments 
+    from args: a column name and a python expression. Raise an exception if 
+    the column is in in_headers.
+
+    Tip: use "x not in l" to check if x is *not* an element of l. 
+         "not (x in l)" also works.
+
+    Example: compute the points per game for each player
+
+    $ python3 hw4.py player_career_short.csv -Add ppg 'int(pts)/int(gp)'
+    id,firstname,lastname,leag,gp,minutes,pts,oreb,dreb,reb,asts,stl,blk,turnover,pf,fga,fgm,fta,ftm,tpa,tpm,ppg
+    ABDELAL01 ,Alaa,Abdelnaby,N,256,3200,1465,283,563,846,85,71,69,247,484,1236,620,321,225,3,0,5.72265625
+    ABDULKA01 ,Kareem,Abdul-jabbar,N,1560,57446,38387,2975,9394,17440,5660,1160,3189,2527,4657,28307,15837,9304,6712,18,1,24.60705128205128
+    ABDULMA01 ,Mahmo,Abdul-rauf,N,586,15633,8553,219,868,1087,2079,487,46,963,1107,7943,3514,1161,1051,1339,474,14.595563139931741
+    ABDULTA01 ,Tariq,Abdul-wahad,N,236,4808,1830,286,490,776,266,184,82,309,485,1726,720,529,372,76,18,7.754237288135593
+    ABDURSH01 ,Shareef,Abdur-rahim,N,830,28883,15028,1869,4370,6239,2109,820,638,2136,2324,11515,5434,4943,4006,519,154,18.106024096385543
+    ABERNTO01 ,Tom,Abernethy,N,319,5434,1779,374,637,1011,384,185,60,129,525,1472,724,443,331,2,0,5.576802507836991
+    ABLEFO01  ,Forest,Able,N,1,1,0,0,0,1,1,0,0,0,1,2,0,0,0,0,0,0.0
+    ABRAMJO01 ,John,Abramovic,N,56,0,533,0,0,0,37,0,0,0,171,855,203,185,127,0,0,9.517857142857142
+    ACKERAL01 ,Alex,Acker,N,30,234,81,9,20,29,16,6,4,11,13,92,34,10,5,25,8,2.7
+    """
+
+    def __init__(self, in_headers, args):
+        self.input_headers = in_headers
+        consumed = [args.pop(0)]
+        consumed.append(args.pop(0))
+        self.aggregate_headers = []
+        input_headers_copy = in_headers
+
+        if consumed[0] in self.input_headers:
+            raise Exception('column given in input headers')
+        else:
+            input_headers_copy.append(consumed[0])
+        self.output_headers = input_headers_copy
+
+        self.added = consumed
+               
+    def process_row(self,row):
+        temp = str(eval(self.added[1], row))
+        row[self.added[0]] = temp
+        return row
+
+    def get_aggregate(self):
+        return {}
+
+def runUpdate():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['ppg', 'int(pts)/int(gp)']
+    query = Add(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)

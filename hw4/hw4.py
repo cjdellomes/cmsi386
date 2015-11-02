@@ -581,17 +581,46 @@ class Filter:
     """
 
     def __init__(self, in_headers, args):
-        raise Exception("Implement Filter constructor")
+        self.input_headers = in_headers
+        consumed = []
+        for i in range(0, len(args)):
+            if list(str(args[0]))[0] != '-':
+                consumed.append(args.pop(0))
+
+        self.output_headers = in_headers
+
+        self.aggregate_headers = []
+
+        self.checks = consumed
 
     def process_row(self,row):
-        raise Exception("Implement Filter.process_row")
+        for i in self.checks:
+            if eval(i, row) == False:
+                return None
+        return row
 
     def get_aggregate(self):
-        raise Exception("Implement Filter.get_aggregate")
+        return {}
 
 #################### Test it! ####################    
 
 # write your own test!
+
+def runFilter():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['int(gp) > 500']
+    query = Filter(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)
 
 class Update:
     """ 
@@ -620,17 +649,43 @@ class Update:
     """
     
     def __init__(self, in_headers, args):
-        raise Exception("Implement Update constructor")
+        self.input_headers = in_headers
+        consumed = [args.pop(0)]
+        consumed.append(args.pop(0))
+        self.output_headers = in_headers
+        self.aggregate_headers = []
+
+        if not(consumed[0] in self.input_headers):
+            raise Exception('column given not in input headers')
+
+        self.updated = consumed
 
     def process_row(self,row):
-        raise Exception("Implement Update.process_row")
+        temp = eval(self.updated[1], row)
+        row[self.updated[0]] = temp
+        return row
 
     def get_aggregate(self):
-        raise Exception("Implement Update.get_aggregate")
+        return {}
 
 #################### Test it! ####################    
 
 # write your own test!
+def runUpdate():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['firstname', 'firstname.lower()']
+    query = Update(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)
 
 class Add:
     """ 
@@ -657,17 +712,46 @@ class Add:
     """
 
     def __init__(self, in_headers, args):
-        raise Exception("Implement Add constructor")
+        self.input_headers = in_headers
+        consumed = [args.pop(0)]
+        consumed.append(args.pop(0))
+        self.aggregate_headers = []
+        input_headers_copy = in_headers
+
+        if consumed[0] in self.input_headers:
+            raise Exception('column given in input headers')
+        else:
+            input_headers_copy.append(consumed[0])
+        self.output_headers = input_headers_copy
+
+        self.added = consumed
                
     def process_row(self,row):
-        raise Exception("Implement Add.process_row")
+        temp = str(eval(self.added[1], row))
+        row[self.added[0]] = temp
+        return row
 
     def get_aggregate(self):
-        raise Exception("Implement Add.get_aggregate")
+        return {}
 
 #################### Test it! ####################    
 
 # write your own test!
+def runUpdate():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['ppg', 'int(pts)/int(gp)']
+    query = Add(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)
 
 class MaxBy:
     """
