@@ -59,20 +59,22 @@ import sys
 ################################################
 
 def rowStringToDict(headers, ln):
-    #Convert a line of data a CSV to a dictionary
-    #mapping the column header to each column cell.
-    #The keys and values of the dictionary should all be strings.
+    """
+    Convert a line of data in a CSV to a dictionary
+    mapping the column header to each column cell.
+    The keys and values of the dictionary should all be strings.
 
-    #Example:
+    Example:
 
-    #heads = ['Name','Age','Hair']
-    #ln    = 'Steve,25,Blonde'
-    #row   = rowStringToDict(heads, ln)
+    heads = ['Name','Age','Hair']
+    ln    = 'Steve,25,Blonde'
+    row   = rowStringToDict(heads, ln)
 
-    #row should be:
-    #  {'Name' : 'Steve', 'Age' : '25', 'Hair' : 'Blonde'}
+    row should be:
+      {'Name' : 'Steve', 'Age' : '25', 'Hair' : 'Blonde'}
 
-    #Tip: use the split method on strings. See help(str.split)
+    Tip: use the split method on strings. See help(str.split)
+    """
 
     return dict(zip(headers, ln.split(',')))
 
@@ -93,11 +95,12 @@ def rowDictToString(headers, dict):
 
     Tip: use the join method on strings. See help(str.join)
     """
+
     result = ","
     line = []
-    
+
     for i in headers:
-        line.append(dict[i])
+        line.append(str(dict[i]))
 
     return result.join(line)
 
@@ -273,13 +276,14 @@ def runQuery(f, query):
         converted = rowStringToDict(query.input_headers, ln)
         current = query.process_row(converted)
         if current != None:
-            print(rowDictToString(query.input_headers, converted))
+            print(rowDictToString(query.output_headers, current))
+
 
     # did the query do any aggregation?
     if len(query.aggregate_headers) > 0:
         # yes. print the aggregate table.
-        print(query.get_aggregate())
-
+        print(','.join(query.aggregate_headers))
+        print(rowDictToString(query.aggregate_headers, query.get_aggregate()))
 
 #################### Test it! ####################
 # Here are some tests:
@@ -322,7 +326,7 @@ def runCount():
     runQuery(f, query)
 
     # should produce the output shown in the Count docstring.
-    
+
 #################### STEP 3 : Writing Queries ####################
 # Time to implement a bunch of small query classes.
 # You should write tests like runIdentity and runCount for each one!
@@ -361,9 +365,9 @@ class Rename:
         self.input_headers = in_headers
         consumed = [args.pop(0)]
         consumed.append(args.pop(0))
-        temp = in_headers
-        temp[temp.index(consumed[0])] = consumed[1]
-        self.output_headers = temp
+        in_headers_copy = in_headers
+        in_headers_copy[in_headers_copy.index(consumed[0])] = consumed[1]
+        self.output_headers = in_headers_copy
         self.aggregate_headers = []
 
     def process_row(self,row):
@@ -386,14 +390,13 @@ def runRename():
     query = Rename(in_headers, args)
 
     # should have consumed two args!
-    assert(args == [])  
+    assert(args == [])
 
     # run it.
     runQuery(f, query)
 
     # should produce the output shown in the Rename docstring.
 
-    
 class Swap:
     """
     Swap the positions of two columns. Does no aggregation.
@@ -463,8 +466,6 @@ def runSwap():
 
     # should produce the output shown in the Swap docstring.
 
-#################### Next! ####################
-    
 class Select:
     """
     Select a subset of columns to be included in the output. Does no aggregation.
@@ -504,10 +505,10 @@ class Select:
         self.selected = consumed
 
     def process_row(self, row):
-        row_copy = {}
+        row_result = {}
         for i in self.selected:
-            row_copy[i] = row[i]
-        return row_copy
+            row_result[i] = row[i]
+        return row_result
 
     def get_aggregate(self):
         return {}
@@ -547,10 +548,6 @@ def runSelect2():
     # run it.
     runQuery(f, query)
 
-
-    
-#################### Keep going! You're doing great! ##########
-    
 class Filter:
     """
     Return only the rows that pass a check. Consumes a single argument from args, which
@@ -601,10 +598,6 @@ class Filter:
 
     def get_aggregate(self):
         return {}
-
-#################### Test it! ####################    
-
-# write your own test!
 
 def runFilter():
     f = open('player_career_short.csv')
@@ -668,9 +661,6 @@ class Update:
     def get_aggregate(self):
         return {}
 
-#################### Test it! ####################    
-
-# write your own test!
 def runUpdate():
     f = open('player_career_short.csv')
 
@@ -734,10 +724,7 @@ class Add:
     def get_aggregate(self):
         return {}
 
-#################### Test it! ####################    
-
-# write your own test!
-def runUpdate():
+def runAdd():
     f = open('player_career_short.csv')
 
     # get the input headers
@@ -783,17 +770,41 @@ class MaxBy:
     ABDULKA01 
     """
     def __init__(self, in_headers, args):
-        raise Exception("Implement MaxBy constructor")
+        self.input_headers = in_headers
+        self.output_headers = in_headers
+        consumed = [args.pop(0)]
+        consumed.append(args.pop(0))
+        self.aggregate_headers = ['Max ' + consumed[0] + ' By ' + consumed[1]]
+
+        self.max_params = consumed
+        self.max = 0
+        self.value = ''
 
     def process_row(self,row):
-        raise Exception("Implement MaxBy.process_row")
+        check = int(row[self.max_params[1]])
+        if check >= self.max:
+            self.max = check
+            self.value = row[self.max_params[0]]
+        return row
     
     def get_aggregate(self):
-        raise Exception("Implement MaxBy.get_aggregate")
+        return {self.aggregate_headers[0] : self.value}
 
-#################### Test it! ####################    
+def runMaxBy():
+    f = open('player_career_short.csv')
 
-# write your own test!
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['id', 'minutes']
+    query = MaxBy(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)
 
 class Sum:
     """
@@ -820,17 +831,36 @@ class Sum:
     """
 
     def __init__(self, in_headers, args):
-        raise Exception("Implement Sum constructor")
+        self.input_headers = in_headers
+        self.output_headers = in_headers
+        consumed = [args.pop(0)]
+        self.aggregate_headers = [consumed[0] + ' Sum']
+
+        self.sum = 0
+        self.to_sum = consumed
 
     def process_row(self,row):
-        raise Exception("Implement Sum.process_row")
+        self.sum += int(row[self.to_sum[0]])
+        return row
 
     def get_aggregate(self):
-        raise Exception("Implement Sum.get_aggregate")
+        return {self.aggregate_headers[0] : str(self.sum)}
 
-#################### Test it! ####################    
+def runSum():
+    f = open('player_career_short.csv')
 
-# write your own test!
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['turnover']
+    query = Sum(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)
 
 class Mean:
     """
@@ -855,13 +885,39 @@ class Mean:
     """
     
     def __init__(self, in_headers, args):
-        raise Exception("Implement Mean constructor")
+        self.input_headers = in_headers
+        self.output_headers = in_headers
+        consumed = [args.pop(0)]
+        self.aggregate_headers = [consumed[0] + ' Mean']
+
+        self.mean = 0
+        self.row_count = 0
+        self.to_mean = consumed
 
     def process_row(self,row):
-        raise Exception("Implement Mean.process_row")
+        self.mean += int(row[self.to_mean[0]])
+        self.row_count += 1
+        return row
 
     def get_aggregate(self):
-        raise Exception("Implement Mean.get_aggregate")
+        self.mean = self.mean / self.row_count
+        return {self.aggregate_headers[0] : str(self.mean)}
+
+def runMean():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['turnover']
+    query = Mean(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)
 
 #################### STEP 4 : Composing Queries ####################
 # Each of our little queries is neat, but they become much more

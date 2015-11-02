@@ -42,7 +42,7 @@ def rowDictToString(headers, dict):
     line = []
 
     for i in headers:
-        line.append(dict[i])
+        line.append(str(dict[i]))
 
     return result.join(line)
 
@@ -193,7 +193,8 @@ def runQuery(f, query):
     # did the query do any aggregation?
     if len(query.aggregate_headers) > 0:
         # yes. print the aggregate table.
-        print(query.get_aggregate())
+        print(','.join(query.aggregate_headers))
+        print(rowDictToString(query.aggregate_headers, query.get_aggregate()))
 
 #################### Test it! ####################
 # Here are some tests:
@@ -634,7 +635,7 @@ class Add:
     def get_aggregate(self):
         return {}
 
-def runUpdate():
+def runAdd():
     f = open('player_career_short.csv')
 
     # get the input headers
@@ -643,6 +644,185 @@ def runUpdate():
     # build the query
     args = ['ppg', 'int(pts)/int(gp)']
     query = Add(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)
+
+class MaxBy:
+    """
+    An aggregation that shows one column (the display column) of the player
+    with a maximum value for another column (the value column). Assume the value column
+    contains the string representation of an int. Use int() to convert each entry in the
+    column to an int before the comparison.
+
+    process_row returns each row unchanged.
+
+    aggregate_headers should contain one column name, of the form:
+      "Max <name of display column> By <name of value column>"
+
+    Example: return the id of the player with the most minutes of play time.
+
+    $ python3 hw4.py player_career_short.csv -MaxBy id minutes
+    id,firstname,lastname,leag,gp,minutes,pts,oreb,dreb,reb,asts,stl,blk,turnover,pf,fga,fgm,fta,ftm,tpa,tpm
+    ABDELAL01 ,Alaa,Abdelnaby,N,256,3200,1465,283,563,846,85,71,69,247,484,1236,620,321,225,3,0
+    ABDULKA01 ,Kareem,Abdul-jabbar,N,1560,57446,38387,2975,9394,17440,5660,1160,3189,2527,4657,28307,15837,9304,6712,18,1
+    ABDULMA01 ,Mahmo,Abdul-rauf,N,586,15633,8553,219,868,1087,2079,487,46,963,1107,7943,3514,1161,1051,1339,474
+    ABDULTA01 ,Tariq,Abdul-wahad,N,236,4808,1830,286,490,776,266,184,82,309,485,1726,720,529,372,76,18
+    ABDURSH01 ,Shareef,Abdur-rahim,N,830,28883,15028,1869,4370,6239,2109,820,638,2136,2324,11515,5434,4943,4006,519,154
+    ABERNTO01 ,Tom,Abernethy,N,319,5434,1779,374,637,1011,384,185,60,129,525,1472,724,443,331,2,0
+    ABLEFO01  ,Forest,Able,N,1,1,0,0,0,1,1,0,0,0,1,2,0,0,0,0,0
+    ABRAMJO01 ,John,Abramovic,N,56,0,533,0,0,0,37,0,0,0,171,855,203,185,127,0,0
+    ACKERAL01 ,Alex,Acker,N,30,234,81,9,20,29,16,6,4,11,13,92,34,10,5,25,8
+
+    Max id By minutes
+    ABDULKA01 
+    """
+    def __init__(self, in_headers, args):
+        self.input_headers = in_headers
+        self.output_headers = in_headers
+        consumed = [args.pop(0)]
+        consumed.append(args.pop(0))
+        self.aggregate_headers = ['Max ' + consumed[0] + ' By ' + consumed[1]]
+
+        self.max_params = consumed
+        self.max = 0
+        self.value = ''
+
+    def process_row(self,row):
+        check = int(row[self.max_params[1]])
+        if check >= self.max:
+            self.max = check
+            self.value = row[self.max_params[0]]
+        return row
+    
+    def get_aggregate(self):
+        return {self.aggregate_headers[0] : self.value}
+
+def runMaxBy():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['id', 'minutes']
+    query = MaxBy(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)
+
+class Sum:
+    """
+    An aggregation that sums all entries of a column. Takes one argument, the header 
+    of the column to be summed. Produces an aggregate row containing one column, with
+    header "<header> Sum" where <header> is the argument.
+
+    Example: Compute the total number of turnovers.
+
+    $ python3 hw4.py player_career_short.csv -Sum turnover
+    id,firstname,lastname,leag,gp,minutes,pts,oreb,dreb,reb,asts,stl,blk,turnover,pf,fga,fgm,fta,ftm,tpa,tpm
+    ABDELAL01 ,Alaa,Abdelnaby,N,256,3200,1465,283,563,846,85,71,69,247,484,1236,620,321,225,3,0
+    ABDULKA01 ,Kareem,Abdul-jabbar,N,1560,57446,38387,2975,9394,17440,5660,1160,3189,2527,4657,28307,15837,9304,6712,18,1
+    ABDULMA01 ,Mahmo,Abdul-rauf,N,586,15633,8553,219,868,1087,2079,487,46,963,1107,7943,3514,1161,1051,1339,474
+    ABDULTA01 ,Tariq,Abdul-wahad,N,236,4808,1830,286,490,776,266,184,82,309,485,1726,720,529,372,76,18
+    ABDURSH01 ,Shareef,Abdur-rahim,N,830,28883,15028,1869,4370,6239,2109,820,638,2136,2324,11515,5434,4943,4006,519,154
+    ABERNTO01 ,Tom,Abernethy,N,319,5434,1779,374,637,1011,384,185,60,129,525,1472,724,443,331,2,0
+    ABLEFO01  ,Forest,Able,N,1,1,0,0,0,1,1,0,0,0,1,2,0,0,0,0,0
+    ABRAMJO01 ,John,Abramovic,N,56,0,533,0,0,0,37,0,0,0,171,855,203,185,127,0,0
+    ACKERAL01 ,Alex,Acker,N,30,234,81,9,20,29,16,6,4,11,13,92,34,10,5,25,8
+
+    turnover Sum
+    6322
+    """
+
+    def __init__(self, in_headers, args):
+        self.input_headers = in_headers
+        self.output_headers = in_headers
+        consumed = [args.pop(0)]
+        self.aggregate_headers = [consumed[0] + ' Sum']
+
+        self.sum = 0
+        self.to_sum = consumed
+
+    def process_row(self,row):
+        self.sum += int(row[self.to_sum[0]])
+        return row
+
+    def get_aggregate(self):
+        return {self.aggregate_headers[0] : str(self.sum)}
+
+def runSum():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['turnover']
+    query = Sum(in_headers, args)
+
+    # should have consumed all args!
+    assert(args == [])
+
+    # run it.
+    runQuery(f, query)
+
+class Mean:
+    """
+    An aggregation that computes the mean of all entries in a column.
+
+    Example: Compute the average number of turnovers made by a player.
+
+    $ python3 hw4.py player_career_short.csv -Mean turnover
+    id,firstname,lastname,leag,gp,minutes,pts,oreb,dreb,reb,asts,stl,blk,turnover,pf,fga,fgm,fta,ftm,tpa,tpm
+    ABDELAL01 ,Alaa,Abdelnaby,N,256,3200,1465,283,563,846,85,71,69,247,484,1236,620,321,225,3,0
+    ABDULKA01 ,Kareem,Abdul-jabbar,N,1560,57446,38387,2975,9394,17440,5660,1160,3189,2527,4657,28307,15837,9304,6712,18,1
+    ABDULMA01 ,Mahmo,Abdul-rauf,N,586,15633,8553,219,868,1087,2079,487,46,963,1107,7943,3514,1161,1051,1339,474
+    ABDULTA01 ,Tariq,Abdul-wahad,N,236,4808,1830,286,490,776,266,184,82,309,485,1726,720,529,372,76,18
+    ABDURSH01 ,Shareef,Abdur-rahim,N,830,28883,15028,1869,4370,6239,2109,820,638,2136,2324,11515,5434,4943,4006,519,154
+    ABERNTO01 ,Tom,Abernethy,N,319,5434,1779,374,637,1011,384,185,60,129,525,1472,724,443,331,2,0
+    ABLEFO01  ,Forest,Able,N,1,1,0,0,0,1,1,0,0,0,1,2,0,0,0,0,0
+    ABRAMJO01 ,John,Abramovic,N,56,0,533,0,0,0,37,0,0,0,171,855,203,185,127,0,0
+    ACKERAL01 ,Alex,Acker,N,30,234,81,9,20,29,16,6,4,11,13,92,34,10,5,25,8
+
+    turnover Mean
+    702.4444444444445
+    """
+    
+    def __init__(self, in_headers, args):
+        self.input_headers = in_headers
+        self.output_headers = in_headers
+        consumed = [args.pop(0)]
+        self.aggregate_headers = [consumed[0] + ' Mean']
+
+        self.mean = 0
+        self.row_count = 0
+        self.to_mean = consumed
+
+    def process_row(self,row):
+        self.mean += int(row[self.to_mean[0]])
+        self.row_count += 1
+        return row
+
+    def get_aggregate(self):
+        self.mean = self.mean / self.row_count
+        return {self.aggregate_headers[0] : str(self.mean)}
+
+def runMean():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['turnover']
+    query = Mean(in_headers, args)
 
     # should have consumed all args!
     assert(args == [])
