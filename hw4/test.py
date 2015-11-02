@@ -678,7 +678,7 @@ class MaxBy:
     ACKERAL01 ,Alex,Acker,N,30,234,81,9,20,29,16,6,4,11,13,92,34,10,5,25,8
 
     Max id By minutes
-    ABDULKA01 
+    ABDULKA01
     """
     def __init__(self, in_headers, args):
         self.input_headers = in_headers
@@ -692,7 +692,7 @@ class MaxBy:
         self.value = ''
 
     def process_row(self,row):
-        check = int(row[self.max_params[1]])
+        check = float(row[self.max_params[1]])
         if check >= self.max:
             self.max = check
             self.value = row[self.max_params[0]]
@@ -829,3 +829,114 @@ def runMean():
 
     # run it.
     runQuery(f, query)
+
+class ComposeQueries:
+    """ 
+    Compose two queries into a larger query.
+
+    The rows are processed serially: the output of the first query's process_row
+    method is the input to the second queries process_row method. Note that the 
+    first query could drop the row by returning None (Filter). In this case, you
+    should not call the second query's process_row.
+
+    You should "typecheck" the composition by checking that the first query's
+    output_headers match the second query's input_headers.
+
+    The input_headers of the composite are the input_headers of the first query.
+    The output_headers of the composite are the output_headers of the second query.
+
+    The aggregate row of the composite is the concatenation of the aggregates from
+    the first and second query.
+
+    You should ensure that the aggregate_headers of each input query are *distinct* --
+    they should have no common elements. 
+
+    Tip: use the update method on dictionaries to combine two dictionaries. 
+         d = {'a' : 1, 'b' : 2}
+         d.update({'c' : 3, 'd' : 4})
+         print(d) # prints {'d': 4, 'b': 2, 'c': 3, 'a': 1}
+    
+    Note that ComposeQueries.__init__ does not take in_headers or args as input!
+    q1 and q2 have already been constructed. We're simply combining them.
+
+    Example: Show id of the player with the maximum steals per game.
+
+    $ python3 hw4.py player_career_short.csv -Add stealsPerGame 'int(stl)/int(gp)' -MaxBy id stealsPerGame
+    id,firstname,lastname,leag,gp,minutes,pts,oreb,dreb,reb,asts,stl,blk,turnover,pf,fga,fgm,fta,ftm,tpa,tpm,stealsPerGame
+    ABDELAL01 ,Alaa,Abdelnaby,N,256,3200,1465,283,563,846,85,71,69,247,484,1236,620,321,225,3,0,0.27734375
+    ABDULKA01 ,Kareem,Abdul-jabbar,N,1560,57446,38387,2975,9394,17440,5660,1160,3189,2527,4657,28307,15837,9304,6712,18,1,0.7435897435897436
+    ABDULMA01 ,Mahmo,Abdul-rauf,N,586,15633,8553,219,868,1087,2079,487,46,963,1107,7943,3514,1161,1051,1339,474,0.8310580204778157
+    ABDULTA01 ,Tariq,Abdul-wahad,N,236,4808,1830,286,490,776,266,184,82,309,485,1726,720,529,372,76,18,0.7796610169491526
+    ABDURSH01 ,Shareef,Abdur-rahim,N,830,28883,15028,1869,4370,6239,2109,820,638,2136,2324,11515,5434,4943,4006,519,154,0.9879518072289156
+    ABERNTO01 ,Tom,Abernethy,N,319,5434,1779,374,637,1011,384,185,60,129,525,1472,724,443,331,2,0,0.5799373040752351
+    ABLEFO01  ,Forest,Able,N,1,1,0,0,0,1,1,0,0,0,1,2,0,0,0,0,0,0.0
+    ABRAMJO01 ,John,Abramovic,N,56,0,533,0,0,0,37,0,0,0,171,855,203,185,127,0,0,0.0
+    ACKERAL01 ,Alex,Acker,N,30,234,81,9,20,29,16,6,4,11,13,92,34,10,5,25,8,0.2
+
+    Max id By stealsPerGame
+    ABDELAL01 
+
+    Once you can compose two queries, you should be able to compose any number of queries!
+
+    """
+    def __init__(self, q1, q2):
+        self.input_headers = q1.input_headers
+        self.output_headers = q2.output_headers
+        self.aggregate_headers = q1.aggregate_headers + q2.aggregate_headers
+        print(q1.aggregate_headers)
+
+        self.queries = [q1, q2]
+
+    def process_row(self,row):
+        if self.queries[1].process_row != None:
+            return self.queries[1].process_row(self.queries[0].process_row(row))
+        else:
+            return None
+
+    def get_aggregate(self):
+        if len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) > 0:
+            return self.queries[0].get_aggregate().update(self.queries[1].get_aggregate())
+        elif len(self.queries[0].get_aggregate()) <= 0 and len(self.queries[1].get_aggregate()) > 0:
+            return self.queries[1].get_aggregate()
+        elif len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) <= 0:
+            return self.queries[0].get_aggregate()
+        else:
+            return {}
+        
+
+#################### Test it! ####################
+
+def runComposite():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['-Add', 'stealsPerGame', 'int(stl)/int(gp)', '-MaxBy', 'id', 'stealsPerGame']
+
+    # ok, first query is Add. pop off the flag.
+    args.pop(0)
+
+    # build the first query
+    q1 = Add(in_headers, args)
+
+    # the input of second query is the output of first query
+    next_in_headers = q1.output_headers
+
+    assert(args == ['-MaxBy', 'id', 'stealsPerGame'])
+
+    # ok, second query is MaxBy. pop off the flag.
+    args.pop(0)
+    
+    q2 = MaxBy(next_in_headers, args)
+
+    assert(args == [])
+
+    # build the composite query.
+    query = ComposeQueries(q1,q2)
+    
+    # run it.
+    runQuery(f, query)
+
+    # should produce the output shown in the ComposeQueries docstring.
