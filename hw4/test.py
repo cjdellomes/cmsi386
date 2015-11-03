@@ -1,3 +1,5 @@
+import sys
+
 def rowStringToDict(headers, ln):
     """
     Convert a line of data in a CSV to a dictionary
@@ -490,20 +492,23 @@ class Filter:
 
     def __init__(self, in_headers, args):
         self.input_headers = in_headers
-        consumed = []
-        for i in range(0, len(args)):
-            if list(str(args[0]))[0] != '-':
-                consumed.append(args.pop(0))
+        consumed = [args.pop(0)]
 
         self.output_headers = in_headers
 
         self.aggregate_headers = []
 
-        self.checks = consumed
+        self.check = consumed[0]
 
     def process_row(self,row):
-        for i in self.checks:
-            if eval(i, row) == False:
+        try:
+            if eval(eval(self.check), row) == False:
+                return None
+        except TypeError:
+            if eval(self.check, row) == False:
+                return None
+        except NameError:
+            if eval(self.check, row) == False:
                 return None
         return row
 
@@ -533,7 +538,7 @@ class Update:
     and assign the result to the designated column. Raise an exception if the
     column is not in in_headers. 
 
-    Does no aggregation. 
+    Does no aggregation.
 
     Tip: use "x in l" to check if x is an element of l. See help('in').
 
@@ -565,8 +570,16 @@ class Update:
         self.updated = consumed
 
     def process_row(self,row):
-        temp = eval(self.updated[1], row)
-        row[self.updated[0]] = temp
+        print(self.updated[1])
+        try:
+            temp = eval(eval(self.updated[1]), row)
+            row[self.updated[0]] = temp
+        except TypeError:
+            temp = eval(self.updated[1], row)
+            row[self.updated[0]] = temp
+        except NameError:
+            temp = eval(self.updated[1], row)
+            row[self.updated[0]] = temp
         return row
 
     def get_aggregate(self):
@@ -594,7 +607,7 @@ class Add:
     from args: a column name and a python expression. Raise an exception if 
     the column is in in_headers.
 
-    Tip: use "x not in l" to check if x is *not* an element of l. 
+    Tip: use "x not in l" to check if x is *not* an element of l.
          "not (x in l)" also works.
 
     Example: compute the points per game for each player
@@ -628,8 +641,15 @@ class Add:
         self.added = consumed
                
     def process_row(self,row):
-        temp = str(eval(self.added[1], row))
-        row[self.added[0]] = temp
+        try:
+            temp = str(eval(eval(self.added[1]), row))
+            row[self.added[0]] = temp
+        except NameError:
+            temp = str(eval(self.added[1], row))
+            row[self.added[0]] = temp
+        except TypeError:
+            temp = str(eval(self.added[1], row))
+            row[self.added[0]] = temp
         return row
 
     def get_aggregate(self):
@@ -811,8 +831,8 @@ class Mean:
         return row
 
     def get_aggregate(self):
-        self.mean = self.mean / self.row_count
-        return {self.aggregate_headers[0] : str(self.mean)}
+        result = self.mean / self.row_count
+        return {self.aggregate_headers[0] : str(result)}
 
 def runMean():
     f = open('player_career_short.csv')
@@ -883,12 +903,11 @@ class ComposeQueries:
         self.input_headers = q1.input_headers
         self.output_headers = q2.output_headers
         self.aggregate_headers = q1.aggregate_headers + q2.aggregate_headers
-        print(q1.aggregate_headers)
 
         self.queries = [q1, q2]
 
     def process_row(self,row):
-        if self.queries[1].process_row != None:
+        if self.queries[0].process_row(row) != None:
             return self.queries[1].process_row(self.queries[0].process_row(row))
         else:
             return None
@@ -940,3 +959,153 @@ def runComposite():
     runQuery(f, query)
 
     # should produce the output shown in the ComposeQueries docstring.
+
+def runComposite2():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['-Filter', 'float(minutes) > 0', '-Add', 'ppm', 'float(pts)/float(minutes)']
+
+    # ok, first query is Float. pop off the flag.
+    args.pop(0)
+
+    # build the first query
+    q1 = Filter(in_headers, args)
+
+    # the input of second query is the output of first query
+    next_in_headers = q1.output_headers
+
+    assert(args == ['-Add', 'ppm', 'float(pts)/float(minutes)'])
+
+    # ok, second query is Add. pop off the flag.
+    args.pop(0)
+    
+    q2 = Add(next_in_headers, args)
+
+    assert(args == [])
+
+    # build the composite query.
+    query = ComposeQueries(q1,q2)
+    
+    # run it.
+    runQuery(f, query)
+
+    # should produce the output shown in the ComposeQueries docstring.
+
+################# STEP 5 : Building composite queries ################
+# Implement buildQuery
+######################################################################
+
+# We store all the query classes in a dictionary, so constructing
+# any query is easy: use the flag to lookup the query class, then
+# apply the class like a function.
+#
+# Example: construct an instance of the Identity class.
+#
+# queries['Identity'](in_headers,args)   
+    
+queries = {
+    'Identity' : Identity,
+    'Rename'   : Rename,
+    'Select'   : Select,
+    'Swap'     : Swap,
+    'Filter'   : Filter,
+    'Update'   : Update,
+    'Add'      : Add,
+    'Count'    : Count,
+    'MaxBy'    : MaxBy,
+    'Sum'      : Sum,
+    'Mean'     : Mean
+    }
+
+def buildQuery(in_headers, args):
+    """
+    Build the composite query.
+
+    The first argument of args should be a flag (a string starting with '-').
+
+    Use that to lookup the query class from queries. 
+
+    Once you get the query class, remove the flag from args.
+
+    Call the class with in_headers and args to build the query.
+
+    For example, this builds an Identity:
+      queries['Identity'](in_headers, args)
+
+    Keep building up the query until args is empty.
+    """
+
+    # initially, we just have an identity query.
+    query = Identity(in_headers,args)
+
+    while(len(args) > 0):
+        check = args.pop(0)
+        broken = list(check)
+        if broken[0] == '-':
+            broken.remove('-')
+            to_compose = queries[''.join(broken)]
+            query = ComposeQueries(query, to_compose(query.output_headers, args))
+
+
+    return query
+
+#################### STEP 6: Testing ####################
+# Now the command line examples should work!
+#
+# Test them! Come up with some more tests of your own!!!
+#
+# CELEBRATE!!!!!!
+#
+# Some larger queries to try:
+#
+# Example: Maximum number of points per minute. Filter out players that played 0 minutes to prevent divide by zero.
+#
+# $ python3 hw4.py player_career.csv -Filter 'float(minutes) > 0' -Add ppm 'float(pts)/float(minutes)' -MaxBy ppm ppm
+#
+# Example: Show the first and last names of the players with the maximum points per game, and the maximum number of points per minute.
+#
+# $ python3 hw4.py player_career.csv -Filter 'float(minutes) > 0' -Add first_last 'firstname + " " + lastname' -Add ppg 'float(pts)/float(gp)' -Add ppm 'float(pts)/float(minutes)' -MaxBy first_last ppg -MaxBy first_last ppm
+#
+# Example: Now include maximum values of pointsPerGame and pointsPerMinute, and end with -Filter 'False' to show only the aggregate row.
+#
+# $ python3 hw4.py player_career.csv -Filter 'float(minutes) > 0' -Add first_last 'firstname + " " + lastname' -Add ppg 'float(pts)/float(gp)' -Add ppm 'float(pts)/float(minutes)' -MaxBy first_last ppg -MaxBy ppg ppg -MaxBy first_last ppm -MaxBy ppm ppm -Filter 'False'
+#
+# Example: Count the number of players with at least 1 point per minute on average.
+#
+# $ python3 hw4.py player_career.csv -Filter 'int(minutes) > 0' -Add ppm 'float(pts)/float(minutes)' -Filter 'float(ppm) > 1' -Count
+
+##############################################################
+
+def main():   
+    # arguments start from position 1, since position 0 is always 'hw4.py'
+    args = sys.argv[1:]
+
+    # first argument is the input file. see help(list.pop)
+    fname = args.pop(0)
+    
+    # Open that file! see help(open)
+    f = open(fname)
+    
+    # read the headers (first line) from the input CSV file.
+    # f.readline() returns a string ending with a newline '\n'
+    # The method str.strip() removes it. See help(str.strip)
+    # The method str.split() splits a string into a list of strings
+    #   try: 'A,B,C'.split(',')
+    #   see: help(str.split)
+    in_headers = f.readline().strip().split(',')
+    
+    # build the query
+    query = buildQuery(in_headers, args)
+
+    # after building the query, all arguments should be consumed.
+    assert(len(args) == 0)
+    
+    # run the query.
+    runQuery(f,query)
+
+if __name__ == "__main__":
+    main()

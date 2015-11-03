@@ -3,8 +3,14 @@
 # UID:976113672
 #
 # Others With Whom I Discussed Things:
+# Victor Frolov
+# Peyton Cross
+# Justin Sanny
+# Mondo Yamaguchi
+# Trixie Roque
 #
 # Other Resources I Consulted:
+# https://docs.python.org/2/tutorial/datastructures.html
 #
 #
 
@@ -78,6 +84,8 @@ def rowStringToDict(headers, ln):
 
     return dict(zip(headers, ln.split(',')))
 
+#rowStringToDict(['Name','Age','Hair'], 'Steve,25,Blonde')
+
 assert(rowStringToDict(['Name','Age','Hair'], 'Steve,25,Blonde') == {'Name' : 'Steve', 'Age' : '25', 'Hair' : 'Blonde'})
 
 def rowDictToString(headers, dict):
@@ -105,37 +113,6 @@ def rowDictToString(headers, dict):
     return result.join(line)
 
 assert(rowDictToString(['Name','Age','Hair'], {'Name' : 'Steve', 'Age' : '25', 'Hair' : 'Blonde'}) == 'Steve,25,Blonde')
-
-#####################  Queries ##########################
-# You will define multiple small queries, which can 
-# be composed into larger queries. Each query works by
-# processing multiple rows one by one. The query can
-# update the row (by adding/removing/changing columns),
-# delete the entire row, or leave it unchanged.
-# The query can also do an aggregation by updating its state.
-# Once all rows have been processed, we can get the result of
-# the aggregation. The aggregate is always single row containing
-# zero or more columns.
-#
-# The query interface consists of the following methods and properties:
-#
-# methods:
-#   process_row:       ---   Process an input row (in dictionary form).
-#                            Returns an updated row or None if the row is to be deleted.
-#   get_aggregate:     ---   Once all input rows have been processed,
-#                            return the row of aggregated values.
-#
-# properties:
-#   input_headers      ---   the headers (column names; dictionary keys) of the query's input rows
-#   output_headers     ---   the headers of the query's output rows
-#   aggregate_headers  ---   the headers of the query's aggregate row
-#
-# Query constructors take two inputs: the input_headers of the table
-# it will be operating on, and a list of arguments. The constructor
-# should consume values from the list of arguments (mutating the list).
-###########################################################
-
-# Here are two example queries (Identity and Count) I've provided for you.
 
 class Identity:
     """
@@ -579,20 +556,23 @@ class Filter:
 
     def __init__(self, in_headers, args):
         self.input_headers = in_headers
-        consumed = []
-        for i in range(0, len(args)):
-            if list(str(args[0]))[0] != '-':
-                consumed.append(args.pop(0))
+        consumed = [args.pop(0)]
 
         self.output_headers = in_headers
 
         self.aggregate_headers = []
 
-        self.checks = consumed
+        self.check = consumed[0]
 
     def process_row(self,row):
-        for i in self.checks:
-            if eval(i, row) == False:
+        try:
+            if eval(eval(self.check), row) == False:
+                return None
+        except TypeError:
+            if eval(self.check, row) == False:
+                return None
+        except NameError:
+            if eval(self.check, row) == False:
                 return None
         return row
 
@@ -622,7 +602,7 @@ class Update:
     and assign the result to the designated column. Raise an exception if the
     column is not in in_headers. 
 
-    Does no aggregation. 
+    Does no aggregation.
 
     Tip: use "x in l" to check if x is an element of l. See help('in').
 
@@ -654,8 +634,16 @@ class Update:
         self.updated = consumed
 
     def process_row(self,row):
-        temp = eval(self.updated[1], row)
-        row[self.updated[0]] = temp
+        print(self.updated[1])
+        try:
+            temp = eval(eval(self.updated[1]), row)
+            row[self.updated[0]] = temp
+        except TypeError:
+            temp = eval(self.updated[1], row)
+            row[self.updated[0]] = temp
+        except NameError:
+            temp = eval(self.updated[1], row)
+            row[self.updated[0]] = temp
         return row
 
     def get_aggregate(self):
@@ -683,7 +671,7 @@ class Add:
     from args: a column name and a python expression. Raise an exception if 
     the column is in in_headers.
 
-    Tip: use "x not in l" to check if x is *not* an element of l. 
+    Tip: use "x not in l" to check if x is *not* an element of l.
          "not (x in l)" also works.
 
     Example: compute the points per game for each player
@@ -717,8 +705,15 @@ class Add:
         self.added = consumed
                
     def process_row(self,row):
-        temp = str(eval(self.added[1], row))
-        row[self.added[0]] = temp
+        try:
+            temp = str(eval(eval(self.added[1]), row))
+            row[self.added[0]] = temp
+        except NameError:
+            temp = str(eval(self.added[1], row))
+            row[self.added[0]] = temp
+        except TypeError:
+            temp = str(eval(self.added[1], row))
+            row[self.added[0]] = temp
         return row
 
     def get_aggregate(self):
@@ -767,7 +762,7 @@ class MaxBy:
     ACKERAL01 ,Alex,Acker,N,30,234,81,9,20,29,16,6,4,11,13,92,34,10,5,25,8
 
     Max id By minutes
-    ABDULKA01 
+    ABDULKA01
     """
     def __init__(self, in_headers, args):
         self.input_headers = in_headers
@@ -781,7 +776,7 @@ class MaxBy:
         self.value = ''
 
     def process_row(self,row):
-        check = int(row[self.max_params[1]])
+        check = float(row[self.max_params[1]])
         if check >= self.max:
             self.max = check
             self.value = row[self.max_params[0]]
@@ -900,8 +895,8 @@ class Mean:
         return row
 
     def get_aggregate(self):
-        self.mean = self.mean / self.row_count
-        return {self.aggregate_headers[0] : str(self.mean)}
+        result = self.mean / self.row_count
+        return {self.aggregate_headers[0] : str(result)}
 
 def runMean():
     f = open('player_career_short.csv')
@@ -919,12 +914,6 @@ def runMean():
     # run it.
     runQuery(f, query)
 
-#################### STEP 4 : Composing Queries ####################
-# Each of our little queries is neat, but they become much more
-# powerful when we can combine them to build larger queries.
-##################################################################
-
-    
 class ComposeQueries:
     """ 
     Compose two queries into a larger query.
@@ -978,12 +967,11 @@ class ComposeQueries:
         self.input_headers = q1.input_headers
         self.output_headers = q2.output_headers
         self.aggregate_headers = q1.aggregate_headers + q2.aggregate_headers
-        print(q1.aggregate_headers)
 
         self.queries = [q1, q2]
 
     def process_row(self,row):
-        if self.queries[1].process_row != None:
+        if self.queries[0].process_row(row) != None:
             return self.queries[1].process_row(self.queries[0].process_row(row))
         else:
             return None
@@ -997,6 +985,7 @@ class ComposeQueries:
             return self.queries[0].get_aggregate()
         else:
             return {}
+        
 
 #################### Test it! ####################
 
@@ -1035,7 +1024,41 @@ def runComposite():
 
     # should produce the output shown in the ComposeQueries docstring.
 
+def runComposite2():
+    f = open('player_career_short.csv')
+
+    # get the input headers
+    in_headers = f.readline().strip().split(',')
+
+    # build the query
+    args = ['-Filter', 'float(minutes) > 0', '-Add', 'ppm', 'float(pts)/float(minutes)']
+
+    # ok, first query is Float. pop off the flag.
+    args.pop(0)
+
+    # build the first query
+    q1 = Filter(in_headers, args)
+
+    # the input of second query is the output of first query
+    next_in_headers = q1.output_headers
+
+    assert(args == ['-Add', 'ppm', 'float(pts)/float(minutes)'])
+
+    # ok, second query is Add. pop off the flag.
+    args.pop(0)
     
+    q2 = Add(next_in_headers, args)
+
+    assert(args == [])
+
+    # build the composite query.
+    query = ComposeQueries(q1,q2)
+    
+    # run it.
+    runQuery(f, query)
+
+    # should produce the output shown in the ComposeQueries docstring.
+
 ################# STEP 5 : Building composite queries ################
 # Implement buildQuery
 ######################################################################
@@ -1075,7 +1098,7 @@ def buildQuery(in_headers, args):
     Call the class with in_headers and args to build the query.
 
     For example, this builds an Identity:
-      queries['Identity'](in_headers, args) 
+      queries['Identity'](in_headers, args)
 
     Keep building up the query until args is empty.
     """
@@ -1084,7 +1107,13 @@ def buildQuery(in_headers, args):
     query = Identity(in_headers,args)
 
     while(len(args) > 0):
-        raise Exception("Implement buildQuery")
+        check = args.pop(0)
+        broken = list(check)
+        if broken[0] == '-':
+            broken.remove('-')
+            to_compose = queries[''.join(broken)]
+            query = ComposeQueries(query, to_compose(query.output_headers, args))
+
 
     return query
 
@@ -1144,4 +1173,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
