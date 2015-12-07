@@ -188,7 +188,7 @@ class Count:
 
     def get_aggregate(self):
         # return the aggregate row 
-        return {'Count' : self.count}
+        return {'Count' : str(self.count)}
 
 #################### STEP 2 : Running queries ####################
 # Before going and implementing your own queries, let's implement
@@ -634,7 +634,6 @@ class Update:
         self.updated = consumed
 
     def process_row(self,row):
-        print(self.updated[1])
         try:
             temp = eval(eval(self.updated[1]), row)
             row[self.updated[0]] = temp
@@ -783,7 +782,7 @@ class MaxBy:
         return row
     
     def get_aggregate(self):
-        return {self.aggregate_headers[0] : self.value}
+        return {self.aggregate_headers[0] : str(self.value)}
 
 def runMaxBy():
     f = open('player_career_short.csv')
@@ -965,6 +964,8 @@ class ComposeQueries:
     """
     def __init__(self, q1, q2):
         self.input_headers = q1.input_headers
+        if q1.output_headers != q2.input_headers:
+            raise TypeError("First query's ouput headers doesn't equal second query's input headers")
         self.output_headers = q2.output_headers
         self.aggregate_headers = q1.aggregate_headers + q2.aggregate_headers
 
@@ -977,15 +978,17 @@ class ComposeQueries:
             return None
 
     def get_aggregate(self):
-        if len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) > 0:
-            return self.queries[0].get_aggregate().update(self.queries[1].get_aggregate())
-        elif len(self.queries[0].get_aggregate()) <= 0 and len(self.queries[1].get_aggregate()) > 0:
-            return self.queries[1].get_aggregate()
-        elif len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) <= 0:
-            return self.queries[0].get_aggregate()
-        else:
+        try:
+            if len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) > 0:
+                return self.queries[0].get_aggregate().update(self.queries[1].get_aggregate())
+            elif len(self.queries[0].get_aggregate()) <= 0 and len(self.queries[1].get_aggregate()) > 0:
+                return self.queries[1].get_aggregate()
+            elif len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) <= 0:
+                return self.queries[0].get_aggregate()
+            else:
+                return {}
+        except TypeError:
             return {}
-        
 
 #################### Test it! ####################
 

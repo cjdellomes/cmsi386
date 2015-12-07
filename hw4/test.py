@@ -570,7 +570,6 @@ class Update:
         self.updated = consumed
 
     def process_row(self,row):
-        print(self.updated[1])
         try:
             temp = eval(eval(self.updated[1]), row)
             row[self.updated[0]] = temp
@@ -913,13 +912,16 @@ class ComposeQueries:
             return None
 
     def get_aggregate(self):
-        if len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) > 0:
-            return self.queries[0].get_aggregate().update(self.queries[1].get_aggregate())
-        elif len(self.queries[0].get_aggregate()) <= 0 and len(self.queries[1].get_aggregate()) > 0:
-            return self.queries[1].get_aggregate()
-        elif len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) <= 0:
-            return self.queries[0].get_aggregate()
-        else:
+        try:
+            if len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) > 0:
+                return self.queries[0].get_aggregate().update(self.queries[1].get_aggregate())
+            elif len(self.queries[0].get_aggregate()) <= 0 and len(self.queries[1].get_aggregate()) > 0:
+                return self.queries[1].get_aggregate()
+            elif len(self.queries[0].get_aggregate()) > 0 and len(self.queries[1].get_aggregate()) <= 0:
+                return self.queries[0].get_aggregate()
+            else:
+                return {}
+        except TypeError:
             return {}
         
 
@@ -1049,7 +1051,6 @@ def buildQuery(in_headers, args):
             broken.remove('-')
             to_compose = queries[''.join(broken)]
             query = ComposeQueries(query, to_compose(query.output_headers, args))
-
 
     return query
 
